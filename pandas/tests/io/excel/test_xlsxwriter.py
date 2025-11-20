@@ -135,7 +135,13 @@ def test_autofilter_no_header(tmp_excel):
     # GH 61194 - Edge case: autofilter with header=False
     openpyxl = pytest.importorskip("openpyxl")
     df = DataFrame([[1, 2], [3, 4]])
-    df.to_excel(tmp_excel, engine="xlsxwriter", autofilter=True, header=False, index=False)
+    df.to_excel(
+        tmp_excel,
+        engine="xlsxwriter",
+        autofilter=True,
+        header=False,
+        index=False,
+    )
 
     with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
         ws = wb.active
