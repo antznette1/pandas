@@ -519,3 +519,50 @@ def test_read_multiindex_header_no_index_names(datapath, ext):
         index=pd.MultiIndex.from_tuples([("A", "AA", "AAA"), ("A", "BB", "BBB")]),
     )
     tm.assert_frame_equal(result, expected)
+
+
+def test_autofilter_empty_dataframe(tmp_excel):
+    # GH 61194 - Edge case: empty DataFrame with autofilter
+    df = DataFrame()
+    df.to_excel(tmp_excel, engine="openpyxl", autofilter=True)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        # Empty DataFrame should still set autofilter (even if range is just header)
+        assert ws.auto_filter.ref is not None
+
+
+def test_autofilter_single_row(tmp_excel):
+    # GH 61194 - Edge case: single row DataFrame
+    df = DataFrame({"A": [1], "B": [2]})
+    df.to_excel(tmp_excel, engine="openpyxl", autofilter=True, index=False)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        assert ws.auto_filter.ref is not None
+        # Should cover header + 1 row: A1:B2
+        assert ws.auto_filter.ref == "A1:B2"
+
+
+def test_autofilter_single_column(tmp_excel):
+    # GH 61194 - Edge case: single column DataFrame
+    df = DataFrame({"A": [1, 2, 3]})
+    df.to_excel(tmp_excel, engine="openpyxl", autofilter=True, index=False)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        assert ws.auto_filter.ref is not None
+        # Should cover header + 3 rows: A1:A4
+        assert ws.auto_filter.ref == "A1:A4"
+
+
+def test_autofilter_no_header(tmp_excel):
+    # GH 61194 - Edge case: autofilter with header=False
+    df = DataFrame([[1, 2], [3, 4]])
+    df.to_excel(tmp_excel, engine="openpyxl", autofilter=True, header=False, index=False)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        assert ws.auto_filter.ref is not None
+        # Without header, filter should start at first row: A1:B2
+        assert ws.auto_filter.ref == "A1:B2"
