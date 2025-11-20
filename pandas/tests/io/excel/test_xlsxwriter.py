@@ -93,6 +93,57 @@ def test_book_and_sheets_consistent(tmp_excel):
         assert writer.sheets == {"test_name": sheet}
 
 
+def test_autofilter_empty_dataframe(tmp_excel):
+    # GH 61194 - Edge case: empty DataFrame with autofilter
+    openpyxl = pytest.importorskip("openpyxl")
+    df = DataFrame()
+    df.to_excel(tmp_excel, engine="xlsxwriter", autofilter=True)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        # Empty DataFrame should still set autofilter (even if range is just header)
+        assert ws.auto_filter.ref is not None
+
+
+def test_autofilter_single_row(tmp_excel):
+    # GH 61194 - Edge case: single row DataFrame
+    openpyxl = pytest.importorskip("openpyxl")
+    df = DataFrame({"A": [1], "B": [2]})
+    df.to_excel(tmp_excel, engine="xlsxwriter", autofilter=True, index=False)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        assert ws.auto_filter.ref is not None
+        # Should cover header + 1 row: A1:B2
+        assert ws.auto_filter.ref == "A1:B2"
+
+
+def test_autofilter_single_column(tmp_excel):
+    # GH 61194 - Edge case: single column DataFrame
+    openpyxl = pytest.importorskip("openpyxl")
+    df = DataFrame({"A": [1, 2, 3]})
+    df.to_excel(tmp_excel, engine="xlsxwriter", autofilter=True, index=False)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        assert ws.auto_filter.ref is not None
+        # Should cover header + 3 rows: A1:A4
+        assert ws.auto_filter.ref == "A1:A4"
+
+
+def test_autofilter_no_header(tmp_excel):
+    # GH 61194 - Edge case: autofilter with header=False
+    openpyxl = pytest.importorskip("openpyxl")
+    df = DataFrame([[1, 2], [3, 4]])
+    df.to_excel(tmp_excel, engine="xlsxwriter", autofilter=True, header=False, index=False)
+
+    with contextlib.closing(openpyxl.load_workbook(tmp_excel)) as wb:
+        ws = wb.active
+        assert ws.auto_filter.ref is not None
+        # Without header, filter should start at first row: A1:B2
+        assert ws.auto_filter.ref == "A1:B2"
+
+
 @xfail_autofilter
 def test_to_excel_autofilter_xlsxwriter(tmp_excel):
     openpyxl = pytest.importorskip("openpyxl")
